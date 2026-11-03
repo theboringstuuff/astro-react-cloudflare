@@ -17,6 +17,8 @@ concurrency:
 jobs:
   deploy:
     name: Build and deploy to Cloudflare Workers
+    # the template repository itself has nothing to deploy: only the repositories created from it do
+    if: ${{ !github.event.repository.is_template }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:

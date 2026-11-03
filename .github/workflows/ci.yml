@@ -118,8 +118,10 @@ jobs:
     needs: verify
     # Forks and Dependabot get no repository secrets, so they get no Preview (a dependency bump is checked by the
     # build above; the job would only fail on the missing Cloudflare token)
+    # (and the template repository itself has no Cloudflare account: only the repositories created from it do)
     if: >-
       github.event_name == 'pull_request'
+      && !github.event.repository.is_template
       && github.event.pull_request.head.repo.full_name == github.repository
       && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
