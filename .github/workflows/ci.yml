@@ -108,6 +108,8 @@ jobs:
         with:
           name: lighthouse
           path: .lighthouseci
+          # the folder's name starts with a dot: hidden files are left out unless asked for
+          include-hidden-files: true
           retention-days: 7
 
   # Each pull request gets its own Cloudflare Worker Preview (pr-<number>), built from the dist/ verified above,
