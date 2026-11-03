@@ -10,7 +10,8 @@ les agents IA, déployé sur Cloudflare Workers par GitHub Actions uniquement.
   `llms.txt` par langue. Français à la racine, anglais sous `/en/`.
 - [Cloudflare Workers](https://developers.cloudflare.com/workers/static-assets/) + assets statiques, Preview par pull
   request, Markdown servi aux agents (`Accept: text/markdown`).
-- Budgets de performance vérifiés à chaque build, Lighthouse en CI (100/100/100 en local sur les pages du template).
+- Budgets de performance vérifiés à chaque build, Lighthouse en CI : performance, accessibilité et bonnes pratiques à
+  100 sur les pages du template (SEO 92 : Lighthouse ne connaît pas les lignes `Content-Signal` de `robots.txt`).
 
 ## ⚠️ Avant tout projet : mettre à jour `DESIGN.md`
 
