@@ -1,0 +1,16 @@
+name: Feature or design change
+description: A new page, section, behaviour or design change.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: The need
+      description: Who it is for and what it lets them do.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: References (screenshots, sites) welcome. Design changes must stay within DESIGN.md.

@@ -1,0 +1,35 @@
+---
+// One 404 for the whole site: Cloudflare serves it for any unknown address, in any language. It is built in the
+// default language, and switches to the language of the address the visitor asked for (/en/… -> English) before it
+// is painted.
+import Layout from '@/layouts/Layout.astro';
+import { i18n } from '@/i18n/t';
+import NotFoundPage from '@/views/NotFoundPage';
+import { DEFAULT_LANG, LOCALES } from '@/i18n/config';
+
+const t = i18n(DEFAULT_LANG, 'common');
+const texts = Object.fromEntries(
+	LOCALES.map((l) => [l.code, { ...i18n(l.code, 'common')('notFound'), brand: i18n(l.code, 'common')('meta.brand'), htmlLang: l.htmlLang, dir: l.dir }]),
+);
+---
+
+<Layout title={`${t('notFound.title')} — ${t('meta.brand')}`} description={t('notFound.text')} noindex>
+	<NotFoundPage lang={DEFAULT_LANG} pathname={Astro.url.pathname} />
+</Layout>
+
+<script is:inline define:vars={{ texts, fallback: DEFAULT_LANG }}>
+	(function () {
+		var code = location.pathname.split('/')[1];
+		var t = texts[code];
+		if (!t || code === fallback) return;
+		var d = document.documentElement;
+		d.lang = t.htmlLang;
+		d.dir = t.dir;
+		document.title = t.title + ' — ' + t.brand;
+		document.querySelector('[data-lost="heading"]').textContent = t.heading;
+		document.querySelector('[data-lost="text"]').textContent = t.text;
+		var back = document.querySelector('[data-lost="back"]');
+		back.textContent = t.back;
+		back.setAttribute('href', '/' + code + '/');
+	})();
+</script>

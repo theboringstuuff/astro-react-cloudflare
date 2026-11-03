@@ -1,0 +1,26 @@
+name: Content change
+description: Change copy, images, translations or contact details.
+labels: [content]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page or section
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: The change
+      description: The current text or photo, and what replaces it. Attach the new files.
+    validations:
+      required: true
+  - type: dropdown
+    id: confirmed
+    attributes:
+      label: Confirmed by the client
+      options:
+        - "Yes"
+        - "No, still a draft"
+    validations:
+      required: true

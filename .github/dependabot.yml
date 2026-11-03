@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      astro:
+        patterns: ["astro", "@astrojs/*"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      tooling:
+        patterns: ["wrangler", "typescript", "@google/design.md", "@lhci/cli", "tailwindcss", "@tailwindcss/*"]
+    ignore:
+      # astro check (pnpm run check, in verify and the CI) refuses TypeScript 7.0: « install TypeScript 6 instead ».
+      # Its replacement for 7.1+, @astrojs/ts-content-mapper, is experimental. Lift this once astro check (or its
+      # successor) supports TypeScript 7; 6.x updates still come through.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

@@ -1,0 +1,212 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Tokens, design lint, i18n, type check, build, budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm's version comes from packageManager in package.json
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Astro keeps its optimised images here: reusing them saves most of the 2-minute build
+      - name: Restore the image cache
+        uses: actions/cache@v6
+        with:
+          path: node_modules/.astro
+          # the lockfile is part of the key: a new Astro or adapter version re-encodes, and must then save a fresh cache
+          key: astro-assets-${{ hashFiles('src/assets/**', 'pnpm-lock.yaml') }}
+          restore-keys: astro-assets-
+
+      - name: DESIGN.md and global.css carry the same tokens
+        run: pnpm run check:tokens
+
+      - name: DESIGN.md follows the spec (structure, references, WCAG contrast)
+        run: pnpm run lint:design
+
+      - name: global.css is the only stylesheet
+        run: pnpm run check:css
+
+      - name: Every language has every text (same keys, placeholders, plural forms)
+        run: pnpm run i18n:check
+
+      - name: Type check (0 errors, 0 warnings, 0 hints)
+        run: pnpm run check
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Every page has its Markdown, llms.txt per language, valid structured data
+        run: pnpm run check:agents
+
+      - name: Performance budget (HTML, JavaScript, fonts, images, no third party)
+        run: pnpm run check:perf
+
+      # dist/ plus wrangler's pointer to the config the adapter generated (.wrangler/deploy/config.json -> dist/client/wrangler.json);
+      # hidden files included, or dist/client/.assetsignore is lost and wrangler.json is published as a public file
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: |
+            dist
+            .wrangler/deploy
+          include-hidden-files: true
+          retention-days: 7
+
+  # Lighthouse on the built site, mobile profile, median of five runs per URL (lighthouserc.cjs). The reports are
+  # kept as an artifact: open the .html files to see what moved.
+  lighthouse:
+    name: Lighthouse
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm's version comes from packageManager in package.json
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: .
+
+      - name: Lighthouse CI (performance, accessibility, best practices, SEO)
+        run: pnpm run lighthouse
+
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse
+          path: .lighthouseci
+          retention-days: 7
+
+  # Each pull request gets its own Cloudflare Worker Preview (pr-<number>), built from the dist/ verified above,
+  # and one comment on the pull request carrying its URL, updated on every push. Production is untouched:
+  # Previews live under the same Worker but never receive its traffic. preview-cleanup.yml deletes it on close.
+  preview:
+    name: Preview on Cloudflare
+    needs: verify
+    # Forks and Dependabot get no repository secrets, so they get no Preview (a dependency bump is checked by the
+    # build above; the job would only fail on the missing Cloudflare token)
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    environment:
+      name: preview
+      url: ${{ steps.preview.outputs.url }}
+    concurrency:
+      group: preview-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    env:
+      PREVIEW_NAME: pr-${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm's version comes from packageManager in package.json
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # wrangler comes from the lockfile, so the Preview uses the same version as the Deploy workflow
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: .
+
+      - name: The build artifact is complete
+        run: test -f .wrangler/deploy/config.json && test -f dist/client/wrangler.json && test -f dist/client/.assetsignore && test -f dist/client/index.html
+
+      - name: Create or update the Preview
+        id: preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -o pipefail
+          output="$(pnpm exec wrangler preview --name "$PREVIEW_NAME" --message "PR #${{ github.event.pull_request.number }} at ${SHA:0:7}" --json)"
+          printf '%s\n' "$output"
+          # wrangler prints its upload progress on stdout before the JSON: keep from the first unindented "{" on
+          json="$(awk '/^\{$/ {found=1} found' <<<"$output")"
+          url="$(jq -er '.preview.urls[0]' <<<"$json")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: The Preview answers
+        env:
+          URL: ${{ steps.preview.outputs.url }}
+        run: |
+          for page in / /about /en/; do
+            code=$(curl -sSL -o /tmp/page.html -w '%{http_code}' "$URL$page")  # -L: /about redirects to /about/ (auto-trailing-slash)
+            if [ "$code" != 200 ] || ! grep -q "<title>" /tmp/page.html; then
+              echo "::error::$URL$page answered $code" >&2
+              exit 1
+            fi
+            echo "$URL$page -> $code"
+          done
+          # an agent that asks for Markdown gets the page's .md (src/worker.ts), a browser still gets the HTML
+          type=$(curl -sS -o /dev/null -w '%{content_type}' -H 'Accept: text/markdown' "$URL/about/")
+          case "$type" in text/markdown*) echo "$URL/about/ (Accept: text/markdown) -> $type" ;; *) echo "::error::$URL/about/ answered $type to Accept: text/markdown" >&2; exit 1 ;; esac
+
+      - name: Comment the Preview URL on the pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          URL: ${{ steps.preview.outputs.url }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          marker='<!-- cf-worker-preview -->'
+          body="$marker
+          ### Preview
+
+          **$URL**
+
+          Built from ${SHA:0:7}. This link always shows the latest push to this pull request, and it is deleted when the pull request is closed."
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" >/dev/null
+            echo "updated comment $id"
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" >/dev/null
+            echo "created a comment"
+          fi

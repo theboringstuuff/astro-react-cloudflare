@@ -1,0 +1,27 @@
+{
+	"hero": {
+		"label": "Template · v0",
+		"title": "Boring on the inside. <em>Fast</em> on the outside.",
+		"lead": "Astro builds every page to HTML, React writes the views, Cloudflare serves them from the edge. The browser gets text, one font and nothing else.",
+		"cta": "Read the architecture",
+		"js_one": "{{count}} kilobyte of JavaScript by default",
+		"js_other": "{{count}} kilobytes of JavaScript by default"
+	},
+	"principles": {
+		"title": "Three rules",
+		"items": [
+			{
+				"title": "Design first",
+				"text": "DESIGN.md describes the tokens; the CSS copies them and the CI checks that they still agree."
+			},
+			{
+				"title": "Every language is a page",
+				"text": "One route per language, typed texts, hreflang and a sitemap generated from a single table."
+			},
+			{
+				"title": "Weight is a decision",
+				"text": "A budget per page, checked at build time: JavaScript, inline CSS, fonts and images."
+			}
+		]
+	}
+}

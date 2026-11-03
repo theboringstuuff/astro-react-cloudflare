@@ -1,0 +1,31 @@
+# build output
+dist/
+# generated types
+.astro/
+
+# dependencies
+node_modules/
+
+# logs
+npm-debug.log*
+pnpm-debug.log*
+
+# environment variables and local Worker secrets
+.env
+.env.*
+.dev.vars*
+
+# local Cloudflare state
+.wrangler/
+
+# Lighthouse CI reports (pnpm lighthouse)
+.lighthouseci/
+
+# macOS / editors
+.DS_Store
+.idea/
+
+# AI tools: skills and agents are shared with the project; only what belongs to one computer stays out
+.claude/settings.local.json
+.impeccable/config.local.json
+.impeccable/hook.cache.json

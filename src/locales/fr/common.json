@@ -1,0 +1,28 @@
+{
+	"meta": {
+		"brand": "Signal",
+		"title": "Signal — un template Astro, React et Cloudflare",
+		"description": "Un point de départ statique, multilingue et rapide : Astro, React rendu au build, Tailwind et Cloudflare Workers. Zéro JavaScript par défaut.",
+		"home": "Accueil"
+	},
+	"skipLink": "Aller au contenu",
+	"newTab": "(nouvel onglet)",
+	"nav": {
+		"label": "Navigation principale",
+		"home": "Accueil",
+		"about": "À propos"
+	},
+	"lang": {
+		"label": "Langue"
+	},
+	"notFound": {
+		"title": "Page introuvable",
+		"heading": "Rien ici.",
+		"text": "Cette adresse ne mène nulle part. Le reste du site, lui, est bien là.",
+		"back": "Retour à l'accueil"
+	},
+	"footer": {
+		"made": "Fait avec Astro, React et Cloudflare.",
+		"source": "Code source"
+	}
+}

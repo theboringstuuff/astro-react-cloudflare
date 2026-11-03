@@ -1,0 +1,22 @@
+{
+	"meta": {
+		"title": "À propos — Signal",
+		"description": "Comment ce template est construit : pages statiques, vues React sans JavaScript, Worker Cloudflare devant les assets, Markdown pour les agents."
+	},
+	"title": "À propos",
+	"lead": "Ce template est la base des sites de The Boring Stuff. Il reprend une architecture déjà en production et en retire tout le contenu client.",
+	"sections": [
+		{
+			"title": "Statique d'abord",
+			"text": "Chaque page est pré-rendue au build. Une route peut passer en rendu serveur avec <code>prerender = false</code> quand elle en a vraiment besoin."
+		},
+		{
+			"title": "Pour les humains et les agents",
+			"text": "Chaque page existe aussi en Markdown, listée dans <code>llms.txt</code>. Un agent qui demande <code>text/markdown</code> la reçoit à la même adresse."
+		},
+		{
+			"title": "Déployé par la CI",
+			"text": "Une pull request ouvre une préversion Cloudflare ; un merge sur <code>main</code> met en ligne. Rien ne se déploie depuis une machine."
+		}
+	]
+}

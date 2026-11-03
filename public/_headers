@@ -1,0 +1,28 @@
+# Read by Cloudflare Workers static assets (and by Pages). Compression (Brotli/Zstandard) and HTTP/3 are Cloudflare's.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000
+  Cross-Origin-Opener-Policy: same-origin
+
+# Astro fingerprints everything in /_astro (the name changes when the file changes): cached for a year, never revalidated
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# the files whose name never changes: a day in the browser, then a quick revalidation
+/favicon.svg
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# each page as Markdown (integrations/agents.mjs): read by AI assistants, never shown in search results, where the
+# HTML page is the one to land on
+/*.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Robots-Tag: noindex
+
+/*llms.txt
+  Content-Type: text/plain; charset=utf-8
+
+/*llms-full.txt
+  Content-Type: text/plain; charset=utf-8

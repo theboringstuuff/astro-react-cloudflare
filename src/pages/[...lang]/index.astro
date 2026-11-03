@@ -1,0 +1,14 @@
+---
+// The home page, once per language (src/i18n/routes.ts langPaths): / for the default language, /en/ for English.
+import Layout from '@/layouts/Layout.astro';
+import { langFromUrl, langPaths } from '@/i18n/routes';
+import HomePage from '@/views/HomePage';
+
+export const getStaticPaths = langPaths;
+
+const lang = langFromUrl(Astro.url);
+---
+
+<Layout>
+	<HomePage lang={lang} pathname={Astro.url.pathname} />
+</Layout>

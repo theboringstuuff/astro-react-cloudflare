@@ -1,0 +1,28 @@
+{
+	"hero": {
+		"label": "Template · v0",
+		"title": "Ennuyeux à l'intérieur. <em>Rapide</em> à l'extérieur.",
+		"lead": "Astro construit chaque page en HTML, React écrit les vues, Cloudflare les sert depuis le bord du réseau. Le navigateur reçoit du texte, une police et rien d'autre.",
+		"cta": "Lire l'architecture",
+		"js_one": "{{count}} kilo-octet de JavaScript par défaut",
+		"js_many": "{{count}} de kilo-octets de JavaScript par défaut",
+		"js_other": "{{count}} kilo-octets de JavaScript par défaut"
+	},
+	"principles": {
+		"title": "Trois règles",
+		"items": [
+			{
+				"title": "Le design d'abord",
+				"text": "DESIGN.md décrit les tokens ; le CSS les recopie et la CI vérifie qu'ils restent d'accord."
+			},
+			{
+				"title": "Chaque langue est une page",
+				"text": "Une route par langue, des textes typés, un hreflang et un sitemap générés depuis une seule table."
+			},
+			{
+				"title": "Le poids est une décision",
+				"text": "Un budget par page, vérifié au build : JavaScript, CSS en ligne, polices et images."
+			}
+		]
+	}
+}

@@ -1,0 +1,147 @@
+---
+// The <head> of every page and the shell around it (skip link, header, <main>, footer). The stylesheet is inlined in
+// the page (astro.config.mjs), the font is preloaded, and the only scripts are inline and tiny: no render-blocking
+// request besides the HTML itself.
+import '@/styles/global.css';
+import { getImage } from 'astro:assets';
+import { i18n } from '@/i18n/t';
+import { LOCALES, DEFAULT_LANG, locale } from '@/i18n/config';
+import { absolute, href, langFromUrl, markdown, pathWithoutLang } from '@/i18n/routes';
+import { NAV, SITE } from '@/data/site';
+import { websiteSchema, breadcrumbSchema } from '@/data/schema';
+import SiteHeader from '@/components/layout/SiteHeader';
+import Footer from '@/components/layout/Footer';
+// the one face every page shows above the fold: preloaded, so the type does not wait for the stylesheet to be parsed
+// (the same file as the first @font-face in global.css: the browser fetches it once)
+import fontLatin from '@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2?url';
+
+interface Props {
+	title?: string;
+	description?: string;
+	// structured data for search engines (schema.org), one object per entity, added to what every page gets
+	schema?: Record<string, unknown>[];
+	// the breadcrumb search engines show under a result; by default Home › this page (its menu label, or its title)
+	crumbs?: [name: string, path: string][];
+	// a page that must not be indexed (the 404)
+	noindex?: boolean;
+	// the picture shown when the page is shared (src/assets/…), cropped to 1200 x 630; none by default
+	image?: ImageMetadata;
+	imageAlt?: string;
+}
+
+const lang = langFromUrl(Astro.url);
+const t = i18n(lang, 'common');
+const page = { lang, pathname: Astro.url.pathname };
+const here = locale(lang);
+
+const { title = t('meta.title'), description = t('meta.description'), schema = [], noindex = false, image, imageAlt = '', crumbs } = Astro.props;
+
+// the same page in every language, for canonical, hreflang and Open Graph
+const path = pathWithoutLang(Astro.url.pathname);
+const canonical = absolute(lang, path);
+const alternates = LOCALES.map((l) => ({ hreflang: l.hreflang, href: absolute(l.code, path) }));
+const xDefault = absolute(DEFAULT_LANG, path);
+
+const og = image ? await getImage({ src: image, width: 1200, height: 630, fit: 'cover', format: 'jpg', quality: 78 }) : null;
+const ogUrl = og ? new URL(og.src, Astro.site).href : null;
+
+const isHome = path === '/';
+const navItem = NAV.find((n) => href(lang, n.href) === href(lang, path));
+const pageName = navItem ? t(`nav.${navItem.key}`) : title.split(' — ')[0];
+const graph = [
+	...(isHome ? [websiteSchema(lang)] : []),
+	...(!isHome && !noindex ? [breadcrumbSchema(lang, crumbs ?? [[t('meta.home'), '/'], [pageName, path]])] : []),
+	...schema,
+];
+const jsonLd = graph.length === 1 ? graph[0] : { '@context': 'https://schema.org', '@graph': graph.map(({ '@context': _, ...rest }) => rest) };
+
+// Speculation Rules: the browser prerenders a page of the site when the visitor hovers (or presses) its link, so the
+// next page opens instantly. No script, ignored where unsupported. Markdown and text files are left out.
+const speculation = {
+	prerender: [{ where: { and: [{ href_matches: '/*' }, { not: { href_matches: ['/*.md', '/*.txt', '/*.xml'] } }] }, eagerness: 'moderate' }],
+};
+
+// the redirect to the visitor's language reads the codes from the one table
+const codes = LOCALES.map((l) => l.code);
+---
+
+<!doctype html>
+<html lang={here.htmlLang} dir={here.dir}>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script is:inline define:vars={{ codes, fallback: DEFAULT_LANG }}>
+			// The first visit opens in the browser's language. Only on the home page (/) reached from outside the site,
+			// never for a robot or a testing tool, never once the visitor has picked a language (kept in localStorage):
+			// an address with a language in it (/en/…) is a choice, and is left as it is.
+			(function () {
+				try {
+					if (location.pathname !== '/') return;
+					if (/bot|crawl|spider|slurp|lighthouse|preview|headless|google|inspectiontool/i.test(navigator.userAgent) || navigator.webdriver) return;
+					if (document.referrer && new URL(document.referrer).origin === location.origin) return;
+					var want = localStorage.getItem('lang');
+					if (!want) {
+						var list = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+						for (var i = 0; i < list.length && !want; i++) {
+							var c = (String(list[i]).toLowerCase().match(/^[a-z]+/) || [''])[0];
+							if (codes.indexOf(c) > -1) want = c;
+						}
+					}
+					if (!want || want === fallback || codes.indexOf(want) < 0) return;
+					location.replace('/' + want + location.pathname + location.search + location.hash);
+				} catch (e) {}
+			})();
+		</script>
+		<link rel="preload" href={fontLatin} as="font" type="font/woff2" crossorigin />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		{noindex && <meta name="robots" content="noindex" />}
+		{
+			!noindex && (
+				<>
+					<link rel="canonical" href={canonical} />
+					{alternates.map((a) => (
+						<link rel="alternate" hreflang={a.hreflang} href={a.href} />
+					))}
+					<link rel="alternate" hreflang="x-default" href={xDefault} />
+					{/* the same page as plain Markdown, for AI assistants and agents (integrations/agents.mjs writes it) */}
+					<link rel="alternate" type="text/markdown" href={markdown(lang, path)} />
+				</>
+			)
+		}
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content={t('meta.brand')} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		{!noindex && <meta property="og:url" content={canonical} />}
+		{
+			ogUrl && (
+				<>
+					<meta property="og:image" content={ogUrl} />
+					<meta property="og:image:width" content="1200" />
+					<meta property="og:image:height" content="630" />
+					<meta property="og:image:alt" content={imageAlt} />
+					<meta name="twitter:card" content="summary_large_image" />
+				</>
+			)
+		}
+		<meta property="og:locale" content={here.og} />
+		{LOCALES.filter((l) => l.code !== lang).map((l) => <meta property="og:locale:alternate" content={l.og} />)}
+		<meta name="theme-color" content={SITE.themeColor} />
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<link rel="sitemap" href="/sitemap.xml" />
+		{graph.length > 0 && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+		<script type="speculationrules" set:html={JSON.stringify(speculation)} />
+	</head>
+	<body>
+		<a class="skip-link" href="#content">{t('skipLink')}</a>
+		<SiteHeader {...page} />
+		<main id="content">
+			<slot />
+		</main>
+		<Footer {...page} />
+		<script>
+			import '@/scripts/details';
+		</script>
+	</body>
+</html>

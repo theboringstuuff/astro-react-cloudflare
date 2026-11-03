@@ -1,0 +1,26 @@
+{
+	// The Worker that serves the site. `astro build` (with @astrojs/cloudflare) writes the effective config to
+	// dist/client/wrangler.json and points wrangler at it through .wrangler/deploy/config.json: deploy and preview
+	// always run after a build. Every page is prerendered: the Worker script (src/worker.ts) only hands an AI agent
+	// that asks for Markdown (Accept: text/markdown) the page's .md version, and passes everything else to the assets.
+	// Rename the Worker before the first deploy: it becomes <name>.<account>.workers.dev.
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "astro-react-cloudflare",
+	"main": "./src/worker.ts",
+	"compatibility_date": "2026-10-01",
+	"assets": {
+		"directory": "./dist/client",
+		"binding": "ASSETS",
+		// a real 404 (dist/client/404.html) for unknown addresses
+		"not_found_handling": "404-page",
+		// /about -> /about/ with one 307, never a duplicate page
+		"html_handling": "auto-trailing-slash",
+		// the Worker runs first only where a page could answer in Markdown: the addresses that end with a slash.
+		// Images, scripts, fonts and the .md / .txt / .xml files are served by the assets directly, without it
+		"run_worker_first": ["/*", "!/_astro/*", "!/*.md", "!/*.txt", "!/*.xml", "!/*.png", "!/*.svg", "!/*.ico", "!/*.html"]
+	},
+	// Workers Logs: requests and exceptions, kept by Cloudflare, read in the dashboard
+	"observability": { "enabled": true },
+	// Worker Previews: each pull request gets pr-<number>, created by the CI workflow and deleted by preview-cleanup.yml
+	"previews": {}
+}

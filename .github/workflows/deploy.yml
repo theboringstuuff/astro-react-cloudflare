@@ -1,0 +1,80 @@
+name: Deploy
+
+# The only way the site goes live: a push to main (a merged pull request) or a manual run.
+# Nothing is deployed from a developer's machine.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+    steps:
+      - name: The Cloudflare secrets are set
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (Settings > Secrets and variables > Actions)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      # pnpm's version comes from packageManager in package.json
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Restore the image cache
+        uses: actions/cache@v6
+        with:
+          path: node_modules/.astro
+          # the lockfile is part of the key: a new Astro or adapter version re-encodes, and must then save a fresh cache
+          key: astro-assets-${{ hashFiles('src/assets/**', 'pnpm-lock.yaml') }}
+          restore-keys: astro-assets-
+
+      - name: Verify (tokens, design lint, i18n, type check)
+        run: |
+          pnpm run check:tokens
+          pnpm run lint:design
+          pnpm run i18n:check
+          pnpm run check
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Every page has its Markdown, llms.txt per language, valid structured data
+        run: pnpm run check:agents
+
+      - name: Performance budget
+        run: pnpm run check:perf
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          packageManager: pnpm
+          command: deploy

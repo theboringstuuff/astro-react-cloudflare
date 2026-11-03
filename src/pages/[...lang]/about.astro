@@ -1,0 +1,16 @@
+---
+// A page = this route (the <head>: title, description) + a view (src/views) + a namespace (src/locales/<lang>/about.json).
+import Layout from '@/layouts/Layout.astro';
+import { i18n } from '@/i18n/t';
+import { langFromUrl, langPaths } from '@/i18n/routes';
+import AboutPage from '@/views/AboutPage';
+
+export const getStaticPaths = langPaths;
+
+const lang = langFromUrl(Astro.url);
+const t = i18n(lang, 'about', 'meta');
+---
+
+<Layout title={t('title')} description={t('description')}>
+	<AboutPage lang={lang} pathname={Astro.url.pathname} />
+</Layout>
