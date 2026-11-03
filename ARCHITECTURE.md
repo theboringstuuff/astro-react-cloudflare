@@ -85,7 +85,7 @@ dans le menu : une entrée dans `NAV` (`src/data/site.ts`) et `nav.<clé>` dans 
 | Fallback métrique | `@font-face 'Bricolage Fallback'` | `size-adjust`/`ascent-override` : le swap ne décale presque rien (CLS) |
 | Navigation instantanée | `<script type="speculationrules">` | prerender au survol (Chromium), sans script |
 | Transitions de page | `@view-transition` (CSS) | transitions entre documents, sans script ni SPA |
-| Révélations au scroll | `[data-reveal]` + `animation-timeline: view()` | CSS pur ; jamais sur l'élément LCP |
+| Révélations au scroll | `[data-reveal]` + `animation-timeline: view()` | CSS pur, un volet (`clip-path`) plutôt qu'un fondu : le contraste reste plein ; jamais sur l'élément LCP |
 | Images | `imageService: 'compile'`, `Img`/`Picture` | AVIF/WebP au build, `width`/`height` toujours posés |
 | Cache | `public/_headers` | `/_astro/*` immuable un an ; HTML revalidé |
 | Worker minimal | `run_worker_first` | le Worker ne tourne que sur les adresses de pages ; tout le reste est servi par les assets |
