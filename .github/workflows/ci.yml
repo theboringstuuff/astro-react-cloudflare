@@ -18,6 +18,8 @@ jobs:
     name: Tokens, design lint, i18n, type check, build, budgets
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      artifact-id: ${{ steps.dist.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@v7
 
@@ -66,14 +68,18 @@ jobs:
 
       # dist/ plus wrangler's pointer to the config the adapter generated (.wrangler/deploy/config.json -> dist/client/wrangler.json);
       # hidden files included, or dist/client/.assetsignore is lost and wrangler.json is published as a public file
+      # Kept one day at most: the cleanup job below deletes it once Lighthouse and the Preview have read it
       - uses: actions/upload-artifact@v7
+        id: dist
         with:
           name: dist
           path: |
             dist
             .wrangler/deploy
           include-hidden-files: true
-          retention-days: 7
+          retention-days: 1
+          # the images are already compressed: zipping them again only costs time
+          compression-level: 0
 
   # Lighthouse on the built site, mobile profile, median of five runs per URL (lighthouserc.cjs). The reports are
   # kept as an artifact: open the .html files to see what moved.
@@ -214,3 +220,27 @@ jobs:
             gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" >/dev/null
             echo "created a comment"
           fi
+
+  # dist/ is only read by the jobs of this run (Lighthouse, Preview), and the organisation's free plan stores 500 MB of
+  # artifacts across all its private repositories: once they are done, it goes. A failed or cancelled job keeps it
+  # (one day, see retention-days) so the run can be re-run.
+  cleanup:
+    name: Delete the build artifact
+    needs: [verify, lighthouse, preview]
+    if: >-
+      always()
+      && needs.verify.outputs.artifact-id != ''
+      && !contains(needs.*.result, 'failure')
+      && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Delete the dist artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_ID: ${{ needs.verify.outputs.artifact-id }}
+        run: |
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID"
+          echo "deleted artifact $ARTIFACT_ID"
